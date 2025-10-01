@@ -8,6 +8,7 @@ def process_order(client, ch_db, order_row):
     quantity = order_row['quantity']
     store_id = order_row['store_id']
     user_id = order_row['user_id']
+    created_at = pd.to_datetime(order_row['created_at']).strftime('%Y-%m-%d %H:%M:%S')
 
     # Step 1: Get all ingredients for the product
     pi_query = client.query(f"""
@@ -34,22 +35,23 @@ def process_order(client, ch_db, order_row):
             all_available = False
             break
         else:
-            current_stock = inv_df.iloc[0]['stock_in']
-            inventory_updates.append((ingredient_id, current_stock - required_qty))
+            current_stock_in = inv_df.iloc[0]['stock_in']
+            current_stock_out = inv_df.iloc[0]['stock_out']
+            inventory_updates.append((ingredient_id, current_stock_in - required_qty,current_stock_out + required_qty))
 
     # Step 3: Update order and inventory
     status = 'confirmed' if all_available else 'cancelled'
     # Insert updated order status
     client.command(f"""
-        INSERT INTO {ch_db}.orders (order_id,user_id, product_id, quantity, store_id, status, updated_at)
-        VALUES ({order_id}, {user_id}, {product_id}, {quantity}, {store_id}, '{status}', now())
+        INSERT INTO {ch_db}.orders (order_id,user_id, product_id, quantity, store_id, status,created_at, updated_at)
+        VALUES ({order_id}, {user_id}, {product_id}, {quantity}, {store_id}, '{status}', '{created_at}', now())
     """)
     # If confirmed, update inventory for all ingredients
     if all_available:
-        for ingredient_id, new_stock in inventory_updates:
+        for ingredient_id, new_stock_in,new_stock_out in inventory_updates:
             client.command(f"""
-                INSERT INTO {ch_db}.store_inventory (store_id, ingredient_id, stock_in, updated_at)
-                VALUES ({store_id}, {ingredient_id}, {new_stock}, now())
+                INSERT INTO {ch_db}.store_inventory (store_id, ingredient_id, stock_in, stock_out, updated_at)
+                VALUES ({store_id}, {ingredient_id}, {new_stock_in}, {new_stock_out},now())
             """)
     print(f"Order {order_id} processed: {status}")
 

@@ -71,6 +71,5 @@ CREATE TABLE IF NOT EXISTS PIZZA.orders
       confirmed_at Nullable(DateTime),
       completed_at Nullable(DateTime)
     ) ENGINE = ReplacingMergeTree(updated_at)
-    PARTITION BY toYYYYMM(created_at)
     ORDER BY (order_id);
 
