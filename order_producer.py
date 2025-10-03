@@ -84,14 +84,13 @@ def generate_order(order_id):
         "store_id": store_id,
         "product_id": product_id,
         "quantity": qty,
-        "status": "initiated",
+        "status": "created",
          "created_at": now
     }
 
 create_topic("demo-topic", num_partitions=1, replication_factor=3)
 
 # --- Publish Orders to Kafka ---
-# order_counter = 1
 while True:
     order = generate_order(order_counter)
     msg = json.dumps(order)

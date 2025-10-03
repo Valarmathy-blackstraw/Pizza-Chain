@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS PIZZA.store_inventory
     ingredient_id UInt32,
     stock_in UInt32,
     stock_out UInt32,
-    updated_at DateTime
+    updated_at DateTime DEFAULT now()
     ) ENGINE = ReplacingMergeTree(updated_at) ORDER BY (store_id, ingredient_id);
 
 -- Orders Table
@@ -65,11 +65,27 @@ CREATE TABLE IF NOT EXISTS PIZZA.orders
       store_id UInt32,
       product_id UInt32,
       quantity UInt32,
-      status String,
-      created_at DateTime,
-      updated_at DateTime,
-      confirmed_at Nullable(DateTime),
-      completed_at Nullable(DateTime)
-    ) ENGINE = ReplacingMergeTree(updated_at)
-    ORDER BY (order_id);
+      status Enum8('created' = 1, 'confirmed' = 2, 'completed' = 3, 'cancelled' = 4) DEFAULT 'created',
+      event_time DateTime,
+    ) ENGINE = MergeTree()
+    PARTITION BY toYYYYMM(event_time)
+    ORDER BY (order_id,event_time);
 
+CREATE TABLE PIZZA.latest_order_status
+(
+    order_id      UInt64,
+    latest_status Enum8('created' = 1, 'confirmed' = 2, 'completed' = 3, 'cancelled' = 4),
+    last_update   DateTime
+)
+ENGINE = ReplacingMergeTree(last_update)
+ORDER BY order_id;
+
+CREATE MATERIALIZED VIEW PIZZA.mv_latest_order_status
+TO PIZZA.latest_order_status
+AS
+SELECT
+    order_id,
+    argMax(status, event_time) AS latest_status,
+    max(event_time) AS last_update
+FROM PIZZA.orders
+GROUP BY order_id;
