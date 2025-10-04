@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS PIZZA.orders
 CREATE TABLE PIZZA.latest_order_status
 (
     order_id      UInt64,
+    store_id UInt32,
     latest_status Enum8('created' = 1, 'confirmed' = 2, 'completed' = 3, 'cancelled' = 4),
     last_update   DateTime
 )
@@ -85,7 +86,8 @@ TO PIZZA.latest_order_status
 AS
 SELECT
     order_id,
+    store_id,
     argMax(status, event_time) AS latest_status,
     max(event_time) AS last_update
 FROM PIZZA.orders
-GROUP BY order_id;
+GROUP BY order_id,store_id;
