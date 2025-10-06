@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS PIZZA.products
       name String,
       description String,
       price Float32,
-      category String,
+      category LowCardinality(String),
       image String
     ) ENGINE = MergeTree() ORDER BY product_id;
 
@@ -91,3 +91,19 @@ SELECT
     max(event_time) AS last_update
 FROM PIZZA.orders
 GROUP BY order_id,store_id;
+
+ALTER TABLE PIZZA.orders
+ADD PROJECTION product_processing_duration_proj
+(
+    SELECT
+        product_id,
+        order_id,
+        dateDiff(
+            'second',
+            MINIf(event_time, status = 'created'),
+            MAXIf(event_time, status = 'completed')
+        ) AS processing_duration_seconds
+    GROUP BY product_id, order_id
+);
+ALTER TABLE PIZZA.orders MATERIALIZE PROJECTION product_processing_duration_proj;
+
