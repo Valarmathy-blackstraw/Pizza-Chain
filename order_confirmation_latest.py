@@ -68,7 +68,8 @@ while True:
 
     for _, row in orders_v_df.iterrows():
         order_id = row['order_id']
-        if order_id not in processed_orders:
-            process_order(client, CH_DB, row)
-            processed_orders.add(order_id)
-    time.sleep(5)
+        # if order_id not in processed_orders:
+        process_order(client, CH_DB, row)
+        # processed_orders.add(order_id)
+        time.sleep(3)
+    # time.sleep(5)
