@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import clickhouse_connect as conn
 import config
-
+import time
 # ------------------------
 # ClickHouse Cloud Setup
 # ------------------------
@@ -15,6 +15,11 @@ client = conn.get_client(
     user=config.CLICKHOUSE_CONF['user'],
     password=config.CLICKHOUSE_CONF['password']
 )
+
+def get_next_order_id():
+    # result = client.query(f"SELECT max(order_id) + 1 FROM {CH_DB}.orders").result_rows
+    # return result[0][0] if result and result[0][0] is not None else 1
+    return  int(time.time() * 1000) # milliseconds
 
 
 def load_csv(table, path, extra_id=None):

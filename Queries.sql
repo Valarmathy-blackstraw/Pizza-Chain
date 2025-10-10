@@ -92,6 +92,18 @@ SELECT
 FROM PIZZA.orders
 GROUP BY order_id,store_id;
 
+CREATE MATERIALIZED VIEW PIZZA.mv_alert_table
+TO PIZZA.alert_table
+AS
+SELECT
+    ingredient_id,
+    store_id,
+    stock_in AS current_stock,
+    alert_type,
+    max(updated_at) AS last_update
+FROM PIZZA.store_inventory
+GROUP BY ingredient_id,store_id;
+
 ALTER TABLE PIZZA.orders
 ADD PROJECTION product_processing_duration_proj
 (
@@ -106,4 +118,48 @@ ADD PROJECTION product_processing_duration_proj
     GROUP BY product_id, order_id
 );
 ALTER TABLE PIZZA.orders MATERIALIZE PROJECTION product_processing_duration_proj;
+
+CREATE TABLE IF NOT EXISTS PIZZA.alert_table
+(
+    ingredient_id UInt32,
+    store_id UInt32,
+    current_stock UInt32,
+    sold_out UInt32,
+    alert_type String,
+    updated_at DateTime DEFAULT now()
+) ENGINE = ReplacingMergeTree(updated_at) ORDER BY (store_id, ingredient_id);
+
+CREATE MATERIALIZED VIEW PIZZA.mv_alert_table
+TO PIZZA.alert_table
+AS
+SELECT
+    ingredient_id,
+    store_id,
+    stock_in AS current_stock,
+    -- Example logic: set alert_type based on stock level
+    CASE
+        WHEN stock_in < 1000 THEN 'low_stock'
+        WHEN stock_in > 10000 THEN 'overstock'
+        ELSE 'normal'
+    END AS alert_type,
+    stock_out as sold_out,
+    updated_at
+FROM PIZZA.store_inventory;
+
+CREATE TABLE IF NOT EXISTS PIZZA.total_stocks_added (
+    store_id UInt32,
+    ingredient_id UInt32,
+    total_stocks_added UInt32,
+    updated_at DateTime DEFAULT now()
+) ENGINE = SummingMergeTree
+ORDER BY (store_id, ingredient_id);
+
+ALTER TABLE PIZZA.orders
+ADD PROJECTION event_time_sort_projection
+(
+    SELECT event_time, order_id, status ORDER BY event_time
+);
+
+ALTER TABLE PIZZA.orders MATERIALIZE PROJECTION event_time_sort_projection;
+
 
